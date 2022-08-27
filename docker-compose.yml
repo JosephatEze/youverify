@@ -1,0 +1,94 @@
+version: "3.9"  
+services:
+  customer-service:
+    build: ./customer-service
+    ports:
+      - "3000:3000"
+    environment:
+       DB_URL: mongodb://customer-db/customer-service
+    volumes:
+      #- .:/code
+      - logvolume01:/var/log
+      - customer-service-dbvolume: /data/db
+    depends_on:
+      - redis
+
+  order-service:
+    build: ./order-service
+    ports:
+      - "3001:3001"
+    environment:
+       DB_URL: mongodb://order-db/order-service
+    volumes:
+     # - .:/code
+      - logvolume02:/var/log
+      - order-service-dbvolume: /data/db
+    depends_on:
+      - redis
+
+  payment-service:
+    build: ./payment-service
+    ports:
+      - "3002:3002"
+    environment:
+       DB_URL: mongodb://payment-db/payment-service
+    volumes:
+     # - .:/code
+      - logvolume03:/var/log
+      - payment-service-dbvolume: /data/db
+    depends_on:
+      - redis
+
+  product-service:
+    build: ./product-service
+    ports:
+      - "3003:3003"
+    environment:
+       DB_URL: mongodb://product-db/product-service
+    volumes:
+      #- .:/code
+      - logvolume04:/var/log
+      - product-service-dbvolume: /data/db
+    depends_on:
+      - redis
+
+  redis:
+    image: redis
+
+  rabbitmq:
+    image: rabbitmq:3.9.22-alpine
+    container_name: rabbitmq
+    ports:
+      - 5672:5672
+      - 15672:15672
+
+  customer-db:
+    image: mongo:4.2.22
+    container_name: customer-db
+    ports:
+      - 27017:27017
+  order-db:
+    image: mongo:4.2.22
+    container_name: order-db
+    ports:
+      - 27016:27017
+  payment-db:
+    image: mongo:4.2.22
+    container_name: payment-db
+    ports:
+      - 27015:27017
+  product-db:
+    image: mongo:4.2.22
+    container_name: product-db
+    ports:
+      - 27014:27017
+
+volumes:
+  - logvolume01: {}
+  - logvolume02: {}
+  - logvolume03: {}
+  - logvolume04: {}
+  - product-service-dbvolume: {}
+  - payment-service-dbvolume: {}
+  - order-service-dbvolume: {}
+  - customer-service-dbvolume: {}

@@ -1,0 +1,160 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: order-service-configmap
+  labels:
+    app: app-staging
+data:
+  ENV_VALUE1: ${STAGING_ENV_VALUE1}
+  ENV_VALUE2: ${ENV_VALUE2}
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: order-service
+  labels:
+    app: order-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: order-service
+  template:
+    metadata:
+      labels:
+        app: order-service
+    spec:
+      containers:
+      - name: order-service
+        image: josephat/order-service:${CIRCLE_WORKFLOW_ID:0:7} 
+        ports:
+        - containerPort: 3001
+        envFrom:
+            - configMapRef:
+                name: order-service-configmap
+        volumeMounts:
+          - name: logvolume02
+            mountPath: /var/log
+          - name: order-service-dbvolume
+            mountPath: /data/db
+volumes:
+  - name: logvolume02
+    hostPath:
+      path: /var/log/pods
+      emptyDir: {}
+  - name: order-service-dbvolume
+    hostPath:
+      path: /data/db
+      emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service-svc
+spec:
+  selector:
+    app: order-service
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 3001
+      targetPort: 3001
+      nodePort: 31002
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: order-service-db
+  labels:
+    app: order-service-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: order-service-db
+  template:
+    metadata:
+      labels:
+        app: order-service-db
+    spec:
+      containers:
+      - name: order-service
+        image: mongo:4.2.22
+        ports:
+        - containerPort: 27017
+        volumeMounts:
+          - name: order-service-mongodb-data
+            mountPath: /data/db
+volumes:
+  - name: order-service-mongodb-data
+        persistentVolumeClaim:
+          claimName: order-service-mongodb-pvc
+  #- name: order-service-dbvolume
+    #hostPath:
+    #  path: /data/db
+     # emptyDir: {}
+  
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: order-service-svc
+spec:
+  selector:
+    app: order-service-db
+  ports:
+    - protocol: TCP
+      port: 27016
+      targetPort: 27017
+
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: order-service-mongodb-storageclass
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+    name: order-service-mongodb-pv
+spec:
+  capacity:
+    storage: 10Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: order-service-mongodb-storageclass
+  local:
+    path: /mnt/data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: size
+          operator: In
+          values:
+            - large
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: order-service-mongodb-pvc
+spec:
+  storageClassName: order-service-mongodb-storageclass
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 10Gi
+
+

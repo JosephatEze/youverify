@@ -3,56 +3,30 @@ version: 2.1
 orbs: 
   slack: circleci/slack@4.10.1
   aws-cli: circleci/aws-cli@2.0.3
+  sonarcloud: sonarsource/sonarcloud@1.0.3
+  kubernetes: circleci/kubernetes@1.3.1
+  codecov: codecov/codecov@1.0.2
+  aws-eks: circleci/aws-eks@2.2.0
 
 commands:
-
-   destroy-environment:
-    description: Destroy back-end and front-end cloudformation stacks given a workflow ID.
-    steps:
-      - run:
-          name: Destroy environments
-          when: on_fail
-          command: |
-            echo "Destroying environment: ${CIRCLE_WORKFLOW_ID:0:7} "
-            aws cloudformation delete-stack --stack-name "udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}"  
-            aws cloudformation delete-stack --stack-name "udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}"
-            
-   revert-migrations:
-    description: Revert the last migration if successfully run in the current workflow.
-    # parameters:
-      # Add parameter here     
-    steps:
-      - run:
-          name: Revert migrations
-          # Add when this will run here
-          when: on_fail
-          command: |
-            export SUCCESS=$(curl --insecure  https://kvdb.io/TCMjXnNerAWP6d8AD8tdXG/migration_${CIRCLE_WORKFLOW_ID:0:7})
-            echo ${SUCCESS}
-            if(( ${SUCCESS}==1 )); 
-            then
-             cd ~/project/backend
-             npm install
-             npm run migration:revert
-            fi
             
 jobs:
-  build-frontend:
+  build-customer-service:
     docker:
       - image: circleci/node:13.8.0
     steps:
       - checkout
       - restore_cache:
-          keys: [frontend-build]
+          keys: [customer-service-build]
       - run:
           name: Build front-end
           command: |
-            cd frontend
+            cd customer-service
             npm install
             npm run build
       - save_cache:
-          paths: [frontend/node_modules]
-          key: frontend-build
+          paths: [customer-service/node_modules]
+          key: customer-service-build
       - slack/notify:
           event: fail
           mentions: '@DevelopmentTeam'
@@ -62,22 +36,22 @@ jobs:
           mentions: '@DevelopmentTeam'
           template: basic_success_1 
 
-  build-backend:
+  build-order-service:
     docker:
       - image: circleci/node:13.8.0
     steps:
       - checkout
       - restore_cache:
-          keys: [backend-build]
+          keys: [order-service-build]
       - run:
-          name: Back-end build
+          name: build-order-service
           command: |
-            cd backend
+            cd order-service
             npm install
             npm run build
       - save_cache:
-          paths: [backend/node_modules]
-          key: backend-build
+          paths: [order-service/node_modules]
+          key: order-service-build
       - slack/notify:
           event: fail
           mentions: '@DevelopmentTeam'
@@ -86,19 +60,77 @@ jobs:
           event: pass
           mentions: '@DevelopmentTeam'
           template: basic_success_1 
-  test-frontend:
+
+  build-payment-service:
     docker:
       - image: circleci/node:13.8.0
     steps:
       - checkout
       - restore_cache:
-          keys: [test-frontend]
+          keys: [payment-service-build]
       - run:
-          name: Front-end test
+          name: Build-payment-service
           command: |
-            cd frontend
+            cd payment-service
+            npm install
+            npm run build
+      - save_cache:
+          paths: [payment-service/node_modules]
+          key: payment-service-build
+      - slack/notify:
+          event: fail
+          mentions: '@DevelopmentTeam'
+          template: basic_fail_1
+      - slack/notify:
+          event: pass
+          mentions: '@DevelopmentTeam'
+          template: basic_success_1 
+
+  build-product-service:
+    docker:
+      - image: circleci/node:13.8.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys: [product-service-build]
+      - run:
+          name: product-service build
+          command: |
+            cd product-service
+            npm install
+            npm run build
+      - save_cache:
+          paths: [product-service/node_modules]
+          key: product-service-build
+      - slack/notify:
+          event: fail
+          mentions: '@DevelopmentTeam'
+          template: basic_fail_1
+      - slack/notify:
+          event: pass
+          mentions: '@DevelopmentTeam'
+          template: basic_success_1 
+
+
+  test-customer-service:
+    docker:
+      - image: circleci/node:13.8.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys: [test-customer-service]
+      - run:
+          name: customer-service test
+          command: |
+            cd customer-service
             npm install
             npm run test
+        # we can use npm package or third party service below for this test.
+      - codecov/upload:
+          file: {{ ~/customer-service/ }}
+      - save_cache:
+          paths: [customer-service/node_modules]
+          key: test-customer-service
       - slack/notify:
           event: fail
           mentions: '@DevelopmentTeam'
@@ -108,19 +140,25 @@ jobs:
         #  mentions: '@DevelopmentTeam'
         #  template: basic_success_1 
                 
-  test-backend:
+  test-order-service:
     docker:
       - image: circleci/node:13.8.0
     steps:
       - checkout
       - restore_cache:
-          keys: [test-frontend]
+          keys: [test-order-service]
       - run:
-          name: Back-end test
+          name: order-service test
           command: |
-            cd backend
+            cd order-service
             npm install
             npm run test
+         # we can use npm package or third part service below for this test.
+      - codecov/upload:
+          file: {{ ~/order-service/ }}
+      - save_cache:
+          paths: [order-service/node_modules]
+          key: test-order-service
       - slack/notify:
           event: fail
           mentions: '@DevelopmentTeam'
@@ -130,23 +168,82 @@ jobs:
          # mentions: '@DevelopmentTeam'
          # template: basic_success_1 
 
-  scan-frontend:
+    test-payment-service:
     docker:
       - image: circleci/node:13.8.0
     steps:
       - checkout
       - restore_cache:
-          keys: [scan-frontend]
+          keys: [test-payment-service]
       - run:
-          name: Scan front-end
+          name: payment-service test
           command: |
-            cd frontend
+            cd payment-service
+            npm install
+            npm run test
+         # we can use npm package or third part service below for this test.
+      - codecov/upload:
+          file: {{ ~/payment-service/ }}
+      - save_cache:
+          paths: [payment-service/node_modules]
+          key: test-payment-service
+      - slack/notify:
+          event: fail
+          mentions: '@DevelopmentTeam'
+          template: basic_fail_1
+      #- slack/notify:
+       #   event: pass
+         # mentions: '@DevelopmentTeam'
+         # template: basic_success_1 
+
+    test-product-service:
+    docker:
+      - image: circleci/node:13.8.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys: [test-product-service]
+      - run:
+          name: product-service test
+          command: |
+            cd product-service
+            npm install
+            npm run test
+         # we can use npm package or third part service below for this test.
+      - codecov/upload:
+          file: {{ ~/product-service/ }}
+      - save_cache:
+          paths: [product-service/node_modules]
+          key: test-product-service
+      - slack/notify:
+          event: fail
+          mentions: '@DevelopmentTeam'
+          template: basic_fail_1
+      #- slack/notify:
+       #   event: pass
+         # mentions: '@DevelopmentTeam'
+         # template: basic_success_1 
+
+  scan-customer-service:
+    docker:
+      - image: circleci/node:13.8.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys: [scan-customer-service]
+      - run:
+          name: Scan customer-service
+          command: |
+            cd customer-service
             npm install
             npm audit fix --audit-level=critical --force
             npm audit --audit-level=critical
+         # we can use npm package or third part service below for this static code analysis.
+      - sonarcloud/scan:
+          sonar_token_variable_name: SONAR_TOKEN
       - save_cache:
-          paths: [frontend/node_modules]
-          key: frontend-scan
+          paths: [customer-service/node_modules]
+          key: scan-customer-service
       - slack/notify:
           event: fail
           mentions: '@DevelopmentTeam'
@@ -156,22 +253,25 @@ jobs:
         #  mentions: '@DevelopmentTeam'
         #  template: basic_success_1 
       
-  scan-backend:
+  scan-order-service:
     docker:
       - image: circleci/node:13.8.0
     steps:
       - checkout
       - restore_cache:
-          keys: [scan-backend]
+          keys: [scan-order-service]
       - run:
-          name: Scan back-end
+          name: Scan order-service
           command: |
-            cd backend
+            cd order-service
             npm install
             npm audit fix --audit-level=critical --force
+        # we can use npm package or third part service below for this static code analysis.
+      - sonarcloud/scan:
+          sonar_token_variable_name: SONAR_TOKEN
       - save_cache:
-          paths: [backend/node_modules]
-          key: backend-scan
+          paths: [order-service/node_modules]
+          key: order-service-scan
       - slack/notify:
           event: fail
           mentions: '@DevelopmentTeam'
@@ -179,49 +279,90 @@ jobs:
       #- slack/notify:
          # event: pass
          # mentions: '@DevelopmentTeam'
-         # template: basic_success_1     
-      
-  deploy-infrastructure:
+         # template: basic_success_1   
+
+  scan-payment-service:
     docker:
-      - image: amazon/aws-cli
+      - image: circleci/node:13.8.0
     steps:
       - checkout
-      - run: yum install -y tar gzip 
+      - restore_cache:
+          keys: [scan-payment-service]
       - run:
-          name: Ensure back-end infrastructure exists
+          name: Scan payment-service
           command: |
-            aws cloudformation deploy \
-              --template-file .circleci/files/backend.yml \
-              --tags project=udapeople \
-              --stack-name "udapeople-backend-${CIRCLE_WORKFLOW_ID:0:7}" \
-              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}"  
-                            
+            cd payment-service
+            npm install
+            npm audit fix --audit-level=critical --force
+        # we can use npm package or third part service below for this static code analysis.
+      - sonarcloud/scan:
+          sonar_token_variable_name: SONAR_TOKEN
+      - save_cache:
+          paths: [payment-service/node_modules]
+          key: payment-service-scan
+      - slack/notify:
+          event: fail
+          mentions: '@DevelopmentTeam'
+          template: basic_fail_1
+      #- slack/notify:
+         # event: pass
+         # mentions: '@DevelopmentTeam'
+         # template: basic_success_1 
+
+  scan-product-service:
+    docker:
+      - image: circleci/node:13.8.0
+    steps:
+      - checkout
+      - restore_cache:
+          keys: [scan-product-service]
       - run:
-          name: Ensure front-end infrastructure exist
+          name: Scan product-service
           command: |
-            aws cloudformation deploy \
-              --template-file .circleci/files/frontend.yml \
-              --tags project=udapeople \
-              --stack-name "udapeople-frontend-${CIRCLE_WORKFLOW_ID:0:7}" \
-              --parameter-overrides ID="${CIRCLE_WORKFLOW_ID:0:7}"                
+            cd product-service
+            npm install
+            npm audit fix --audit-level=critical --force
+        # we can use npm package or third part service below for this static code analysis.
+      - sonarcloud/scan:
+          sonar_token_variable_name: SONAR_TOKEN
+      - save_cache:
+          paths: [product-service/node_modules]
+          key: product-service-scan
+      - slack/notify:
+          event: fail
+          mentions: '@DevelopmentTeam'
+          template: basic_fail_1
+      #- slack/notify:
+         # event: pass
+         # mentions: '@DevelopmentTeam'
+         # template: basic_success_1   
+      
+  lint-dockerfiles:
+    docker:
+      - image: circleci/node:13.8.0
+    steps:
+      - checkout      
       - run:
-          name: Add back-end ip to ansible inventory
+          name: install hadolint
           command: |
-            cd .circleci/ansible
-            cat inventory.txt
-            aws ec2 describe-instances \
-            --query 'Reservations[*].Instances[*].PublicIpAddress' \
-            --output text --filter Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7} >> inventory.txt
-            cat inventory.txt
-            export BACKEND_IP=$(aws ec2 describe-instances \
-            --query 'Reservations[*].Instances[*].PublicIpAddress' \
-            --filter Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7} \
-            --output text )
-            echo ${BACKEND_IP}
-      - persist_to_workspace:
-          root: ~/
-          paths:
-            - project/.circleci/ansible/inventory.txt
+            wget -O /bin/hadolint https://github.com/hadolint/hadolint/releases/download/v1.16.3/hadolint-Linux-x86_64 &&\
+            chmod +x /bin/hadolint                    
+      - run:
+          name: lint customer-service dockerfile
+          command: |
+            ./hadolint customer-service/Dockerfile               
+      - run:
+          name: lint order-service dockerfile
+          command: |
+            ./hadolint order-service/Dockerfile 
+      - run:
+          name: lint payment-service dockerfile
+          command: |
+            ./hadolint payment-service/Dockerfile 
+      - run:
+          name: lint product-service dockerfile
+          command: |
+            ./hadolint product-service/Dockerfile      
       - slack/notify:
           event: fail
           mentions: '@DevOpsTeam'
@@ -234,32 +375,62 @@ jobs:
       # Here's where you will add some code to rollback on failurrrre
        
 
-  configure-infrastructure:
+  dockerize-services:
     docker:
       - image: cimg/base:stable
     steps:
       - checkout
-      - add_ssh_keys:
-          fingerprints:
-            - "30:6b:56:37:be:1c:f5:b0:75:59:ff:19:e9:ac:68:ba"
-      - attach_workspace:
-          at: ~/
       - run:
-          name: Install dependencies(AWSCLI AND ANSIBLE)
+          name: Install dependencies(docker AND docker-compose)
           command: |
             sudo apt update
-            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-            unzip awscliv2.zip
-            sudo ./aws/install          
-            sudo apt install software-properties-common -y
-            sudo add-apt-repository --yes --update ppa:ansible/ansible
-            sudo apt install ansible -y                  
+            sudo apt remove docker-desktop
+            sudo rm -r $HOME/.docker/desktop
+            sudo rm /usr/local/bin/com.docker.cli
+            sudo apt purge docker-desktop
+            sudo apt-get install ./docker-desktop-<version>-<arch>.deb
+            systemctl --user start docker-desktop  
       - run:
-          name: Configure server
+          name:  build & push customer-service image
           command: |
-            cd .circleci/ansible
-            cat inventory.txt
-            ansible-playbook -i inventory.txt configure-server.yml
+            echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
+            docker build --tag=customer-service .
+            docker tag customer-service:latest josephat/customer-service:${CIRCLE_WORKFLOW_ID:0:7}
+            docker push josephat/customer-service:${CIRCLE_WORKFLOW_ID:0:7}
+      - run:
+          name:  build & push order-service image
+          command: |
+            echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
+            docker build --tag=order-service .
+            docker tag order-service:latest josephat/order-service:${CIRCLE_WORKFLOW_ID:0:7}
+            docker push josephat/order-service:${CIRCLE_WORKFLOW_ID:0:7}
+      - run:
+          name:  build & push payment-service image
+          command: |
+            echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
+            docker build --tag=payment-service .
+            docker tag payment-service:latest josephat/payment-service:${CIRCLE_WORKFLOW_ID:0:7}
+            docker push josephat/payment-service:${CIRCLE_WORKFLOW_ID:0:7}
+      - run:
+          name:  build & push product-service image
+          command: |
+            echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
+            docker build --tag=product-service .
+            docker tag product-service:latest josephat/product-service:${CIRCLE_WORKFLOW_ID:0:7}
+            docker push josephat/product-service:${CIRCLE_WORKFLOW_ID:0:7}
+
+      #- run:
+        #  name:  docker build
+        #  command: |
+           # cd ~
+          # echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
+          # docker-compose build
+          # docker tag youverify:latest "$DOCKER_USERNAME"/youverify:latest
+          # docker tag youverify:latest "$DOCKER_USERNAME"/youverify:${CIRCLE_WORKFLOW_ID:0:7}
+          ##docker push "$DOCKER_USERNAME"/youverify:latest
+         # docker push "$DOCKER_USERNAME"/youverify:${CIRCLE_WORKFLOW_ID:0:7}
+         # docker pull "$DOCKER_USERNAME"/youverify:${CIRCLE_WORKFLOW_ID:0:7}
+          # docker images
       - slack/notify:
           event: fail
           mentions: '@DevOpsTeam'
@@ -267,27 +438,57 @@ jobs:
       #- slack/notify:
        #   event: pass
         #  mentions: '@DevOpsTeam'
-         # template: basic_success_1 
-      - destroy-environment      
+         # template: basic_success_1      
 
-  run-migrations:
+  Deploy-containers:
     docker:
-      - image: circleci/node:13.8.0
+      - image: cimg/base:stable
     steps:
       - checkout
       - run:
-          name: Run migrations
+          name: Install dependencies(docker, docker-compose, awscli and kubectl)
           command: |
-            cd backend
-            npm install
-            npm run migrations > migrations_dump.txt
+            sudo apt update
+            sudo apt remove docker-desktop
+            sudo rm -r $HOME/.docker/desktop
+            sudo rm /usr/local/bin/com.docker.cli
+            sudo apt purge docker-desktop
+            sudo apt-get install ./docker-desktop-<version>-<arch>.deb
+            systemctl --user start docker-desktop
+
+            curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
+            unzip awscliv2.zip
+            sudo ./aws/install
+
+            curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+            sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
+            kubectl version --client
       - run:
-          name: Send migration results to kvdb
+          name: authenticate to cluster and docker
           command: |
-            if grep -q "has been executed successfully." ~/project/backend/migrations_dump.txt
-            then
-             curl --insecure https://kvdb.io/TCMjXnNerAWP6d8AD8tdXG/migration_${CIRCLE_WORKFLOW_ID:0:7}  -d '1'
-            fi
+              aws eks --region ${REGION} update-kubeconfig --name ${cluster_name}
+              echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
+      - run:
+          name: deploy customer-service 
+          command: |
+              kubectl apply -f ~/k8s/templates/customer-service-deploy.yml
+      - run:
+          name: deploy order-service 
+          command: |
+              kubectl apply -f ~/k8s/templates/order-service-deploy.yml
+      - run:
+          name: deploy payment-service 
+          command: |
+              kubectl apply -f ~/k8s/templates/payment-service-deploy.yml
+      - run:
+          name: deploy product-service 
+          command: |
+              kubectl apply -f ~/k8s/templates/product-service-deploy.yml      
+      - run:
+          name: deploy rabbitmq
+          command: |
+              kubectl apply -f ~/k8s/templates/rabbitmq.yml 
+           
       - slack/notify:
           event: fail
           mentions: '@DevOpsTeam'
@@ -296,307 +497,39 @@ jobs:
         #  event: pass
         #  mentions: '@DevOpsTeam'
          # template: basic_success_1  
-      - revert-migrations 
-      - destroy-environment    
 
-  deploy-frontend:
-    docker:
-      - image: python:3.7-alpine3.11
-    steps:
-      - checkout
-
-      - add_ssh_keys:
-          fingerprints: 
-            - "30:6b:56:37:be:1c:f5:b0:75:59:ff:19:e9:ac:68:ba"
-      - attach_workspace:
-          at: ~/
-      - run:
-          name: Install dependencies
-          command: |
-            apk add --update ansible
-            pip install awscli
-            apk add --update nodejs npm
-        
-      - run:
-          name: Get backend url
-          command: |
-            # your code here
-            export BACKEND_IP=$(aws ec2 describe-instances \
-            --query 'Reservations[*].Instances[*].PublicIpAddress' \
-            --filter Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7} \
-            --output text 
-            )
-            export API_URL="http://${BACKEND_IP}:3030"
-            echo "API_URL = ${API_URL}"
-            echo API_URL="http://${BACKEND_IP}:3030" >> frontend/.env
-            cat frontend/.env
-      - run:
-          name: Deploy frontend objects
-          command: |
-            cd frontend
-            npm install -g npm@latest
-            rm -rf node_modules
-            npm install
-            npm run build
-            aws s3 cp dist s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7} --recursive
-      - run:
-          name: delete bucket objects
-          when: on_fail
-          command: |
-             aws s3 rm "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}" --recursive
-      - slack/notify:
-          event: fail
-          mentions: '@DevelopmentTeam'
-          template: basic_fail_1
-      #- slack/notify:
-       #   event: pass
-         # mentions: '@DevelopmentTeam'
-         # template: basic_success_1 
-      - destroy-environment
-      - revert-migrations
-                    
-  deploy-backend:
-    docker:
-      - image: cimg/base:stable
-    steps:
-      # Add ssh keys with fingerprint here
-      # attach workspace
-      - checkout
-      - add_ssh_keys:
-          fingerprints: 
-            - "30:6b:56:37:be:1c:f5:b0:75:59:ff:19:e9:ac:68:ba"
-      - attach_workspace:
-          at: ~/
-      - run:
-           name: Install dependencies
-           command: |
-              curl -fsSL https://deb.nodesource.com/setup_13.x | sudo -E bash -
-              sudo apt install -y nodejs
-              
-              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-              unzip awscliv2.zip
-              sudo ./aws/install
-      - run:
-           name: Install dependencies(ANSIBLE)
-           command: |
-              sudo apt update
-              sudo apt install software-properties-common -y
-              sudo add-apt-repository --yes --update ppa:ansible/ansible
-              sudo apt install ansible -y
-        #       apk add --update ansible
-     
-      - run:
-          name: create an artifact.tar.gz of the backend
-          command: |
-            cd backend
-            npm i
-            npm run build
-            cd ..
-            tar -C backend -czvf artifact.tar.gz .
-            mkdir -p ~/project/.circleci/ansible/files
-            mv artifact.tar.gz ~/project/.circleci/ansible/files/artifact.tar.gz
-            ls ~/project/.circleci/ansible/files
-      - run:
-          name: Deploy backend
-          command: |
-            cd .circleci/ansible     
-            echo "Contents of the inventory.txt file is: "
-            cat inventory.txt
-            ansible-playbook -i inventory.txt deploy-backend.yml
-
-      - run:
-          name: delete bucket objects
-          when: on_fail
-          command: |
-            aws s3 rm "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}" --recursive
-      - slack/notify:
-          event: fail
-          mentions: '@DevOpsTeam'
-          template: basic_fail_1
-      #- slack/notify:
-      #    event: pass
-       #   mentions: '@DevOpsTeam'
-        #  template: basic_success_1 
-      - destroy-environment
-      - revert-migrations
-
-  smoke-test:
-    docker:
-      - image: cimg/base:stable
-    steps:
-      - checkout
-     
-      - run:
-           name: Install dependencies
-           command: |
-              curl -fsSL https://deb.nodesource.com/setup_13.x | sudo -E bash -
-              sudo apt install -y nodejs
-              
-              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-              unzip awscliv2.zip
-              sudo ./aws/install
-      - run:
-          name: Get backend url
-          command: |
-            export BACKEND_IP=$(aws ec2 describe-instances  --query 'Reservations[*].Instances[*].PublicIpAddress' --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" --output text)
-            export API_URL="http://${BACKEND_IP}:3030"
-            echo "${API_URL}"  
-      - run:
-          name: Backend smoke test.
-          command: |
-            BACKEND_IP=$(aws ec2 describe-instances \
-              --filters "Name=tag:Name,Values=backend-${CIRCLE_WORKFLOW_ID:0:7}" \
-              --query 'Reservations[*].Instances[*].PublicIpAddress' \
-              --output text)
-            export API_URL=http://${BACKEND_IP}:3030
-            echo ${BACKEND_IP}
-            echo backend-${CIRCLE_WORKFLOW_ID:0:7}
-            echo ${API_URL}
-            if curl -s $API_URL/api/status | grep "ok"
-            then
-              exit 0
-            else
-              exit 1
-            fi
-      - run:
-          name: Frontend smoke test.
-          command: |
-            FRONTEND_WEBSITE=http://udapeople-${CIRCLE_WORKFLOW_ID:0:7}.s3-website.${AWS_DEFAULT_REGION}.amazonaws.com
-            echo ${FRONTEND_WEBSITE}
-            if curl -s ${FRONTEND_WEBSITE} | grep "Welcome"
-            then
-              exit 0
-            else
-              exit 1
-            fi
-      - slack/notify:
-          event: fail
-          mentions: '@DevOpsTeam'
-          template: basic_fail_1
-
-      - run:
-          name: delete bucket objects
-          when: on_fail
-          command: |
-            aws s3 rm "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}" --recursive
-      #- slack/notify:
-       #   event: pass
-        #  mentions: '@DevOpsTeam'
-        #  template: basic_success_1 
-      - destroy-environment
-      - revert-migrations
-
-  cloudfront-update:
-    docker:
-      - image: amazon/aws-cli
-    steps:
-      - checkout
-      - run:
-          name:  Save Old Workflow ID to kvdb.io
-          command: |
-            export OLD_WORKFLOW_ID=$(aws cloudformation \
-            list-exports --query "Exports[?Name==\`WorkflowID\`].Value" \
-            --no-paginate --output text)
-            echo "Old Wokflow ID: $OLD_WORKFLOW_ID"
-            curl https://kvdb.io/K9eP7c18yzzvrVqhXAynsC/old_workflow_id -d "${OLD_WORKFLOW_ID}"
-            
-      - run:
-          name: Update cloudfront distribution
-          command: |
-            aws cloudformation deploy \
-              --template-file .circleci/files/cloudfront.yml \
-              --parameter-overrides WorkflowID="${CIRCLE_WORKFLOW_ID:0:7}" \
-              --stack-name udapeople
-      - slack/notify:
-          event: fail
-          mentions: '@DevOpsTeam'
-          template: basic_fail_1
-      - slack/notify:
-          event: pass
-          mentions: '@DevOpsTeam'
-          template: basic_success_1 
-      - run:
-          name: delete bucket objects
-          when: on_fail
-          command: |
-            aws s3 rm "s3://udapeople-${CIRCLE_WORKFLOW_ID:0:7}" --recursive
-      - destroy-environment
-      - revert-migrations
-
-  cleanup:
-    docker:
-      - image: cimg/base:stable
-    steps:
-      - checkout
-      - run:
-           name: Install dependencies
-           command: |                          
-              curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
-              unzip awscliv2.zip
-              sudo ./aws/install
-      - run:
-          name: Get old stack workflow id
-          command: |
-            export STACKS=$(aws cloudformation list-stacks \
-                --query "StackSummaries[*].StackName" \
-                --stack-status-filter CREATE_COMPLETE --no-paginate --output text) 
-            echo Stack names: "${STACKS[@]}"
-            export OldWorkflowID=$(curl --insecure https://kvdb.io/K9eP7c18yzzvrVqhXAynsC/old_workflow_id)
-            echo Old Workflow ID: $OldWorkflowID            
-            
-      - run:
-          name: Remove old stacks and files
-          command: |
-            export OldWorkflowID=$(curl --insecure https://kvdb.io/K9eP7c18yzzvrVqhXAynsC/old_workflow_id)
-            echo Old Workflow ID: $OldWorkflowID 
-
-            if [[ "${CIRCLE_WORKFLOW_ID:0:7}" != "${OldWorkflowID}" ]]
-            then
-              aws s3 rm "s3://udapeople-${OldWorkflowID}" --recursive
-              aws cloudformation delete-stack --stack-name "udapeople-backend-${OldWorkflowID}"
-              aws cloudformation delete-stack --stack-name "udapeople-frontend-${OldWorkflowID}"
-            fi
-      - slack/notify:
-          event: fail
-          mentions: '@DevelopmentTeam'
-          template: basic_fail_1
-       # if [[ "${STACKS[@]}" == "${OldWorkflowID}" ]]
-      #- slack/notify:
-       #   event: pass
-       #   mentions: '@DevelopmentTeam'
-       #   template: basic_success_1 
-      
+   
 
 
 workflows:
   default:
     jobs:
-      - build-frontend
-      - build-backend
-      - test-frontend:
-          requires: [build-frontend]
-      - test-backend:
-          requires: [build-backend]
-      - scan-backend:
-          requires: [build-backend]
-      - scan-frontend:
-          requires: [build-frontend]
-      - deploy-infrastructure:
-          requires: [test-frontend, scan-frontend, test-backend,scan-backend]
+      - build-customer-service
+      - build-order-service
+      - build-payment-service
+      - build-product-service
+      - test-customer-service:
+          requires: [build-customer-service]
+      - test-order-service:
+          requires: [build-order-service]
+      - test-payment-service:
+          requires: [build-payment-service]
+      - test-product-service:
+          requires: [build-product-service]
+      - scan-customer-service:
+          requires: [build-customer-service]
+      - scan-order-service:
+          requires: [build-order-service]
+      - scan-payment-service:
+          requires: [build-payment-service]
+      - scan-product-service:
+          requires: [build-product-service]
+      - lint-dockerfiles
+      - dockerize-services:
+          requires: [test-customer-service, scan-customer-service, test-order-service, scan-order-service, test-payment-service, scan-payment-service, test-product-service, scan-product-service]
           filters:
             branches:
               only: [master]
-      - configure-infrastructure:
-          requires: [deploy-infrastructure]
-      - run-migrations:
-          requires: [configure-infrastructure]
-      - deploy-frontend:
-          requires: [run-migrations]
-      - deploy-backend:
-          requires: [run-migrations]
-      - smoke-test:
-          requires: [deploy-backend, deploy-frontend]
-      - cloudfront-update:
-          requires: [smoke-test]
-      - cleanup:
-          requires: [cloudfront-update]
+      - Deploy-containers:
+          requires: [dockerize-services]
+     

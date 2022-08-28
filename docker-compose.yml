@@ -53,6 +53,7 @@ services:
       - redis
 
   redis:
+    container_name: redis
     image: redis
 
   rabbitmq:

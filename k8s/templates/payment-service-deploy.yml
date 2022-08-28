@@ -1,0 +1,158 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: payment-service-configmap
+  labels:
+    app: app-staging
+data:
+  db_URL: payment-service-db-svc
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: payment-service
+  labels:
+    app: payment-service
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: payment-service
+  template:
+    metadata:
+      labels:
+        app: payment-service
+    spec:
+      containers:
+      - name: payment-service
+        image: josephat/payment-service:${CIRCLE_WORKFLOW_ID:0:7}
+        ports:
+        - containerPort: 3002
+        envFrom:
+            - configMapRef:
+                name: payment-service-configmap
+        volumeMounts:
+          - name: logvolume03
+            mountPath: /var/log
+          - name: payment-service-dbvolume
+            mountPath: /data/db
+volumes:
+  - name: logvolume02
+    hostPath:
+      path: /var/log/pods
+      emptyDir: {}
+  - name: payment-service-dbvolume
+    hostPath:
+      path: /data/db
+      emptyDir: {}
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service-svc
+spec:
+  selector:
+    app: payment-service
+  type: NodePort
+  ports:
+    - protocol: TCP
+      port: 3002
+      targetPort: 3002
+      nodePort: 31003
+
+---
+apiVersion: apps/v1
+kind: StatefulSet
+metadata:
+  name: payment-service-db
+  labels:
+    app: payment-service-db
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: payment-service-db
+  template:
+    metadata:
+      labels:
+        app: payment-service-db
+    spec:
+      containers:
+      - name: payment-service
+        image: mongo:4.2.22
+        ports:
+        - containerPort: 27017
+        volumeMounts:
+          - name: payment-service-mongodb-data
+            mountPath: /data/db
+volumes:
+  - name: payment-service-mongodb-data
+        persistentVolumeClaim:
+          claimName: payment-service-mongodb-pvc
+  #- name: payment-service-dbvolume
+   # hostPath:
+    #  path: /data/db
+     # emptyDir: {}
+  
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: payment-service-db-svc
+spec:
+  selector:
+    app: payment-service-db
+  ports:
+    - protocol: TCP
+      port: 27015
+      targetPort: 27017
+
+---
+kind: StorageClass
+apiVersion: storage.k8s.io/v1
+metadata:
+  name: payment-service-mongodb-storageclass
+provisioner: kubernetes.io/no-provisioner
+volumeBindingMode: WaitForFirstConsumer
+allowVolumeExpansion: true
+
+---
+apiVersion: v1
+kind: PersistentVolume
+metadata:
+    name: payment-service-mongodb-pv
+spec:
+  capacity:
+    storage: 10Gi
+  volumeMode: Filesystem
+  accessModes:
+    - ReadWriteOnce
+  persistentVolumeReclaimPolicy: Retain
+  storageClassName: payment-service-mongodb-storageclass
+  local:
+    path: /mnt/data
+  nodeAffinity:
+    required:
+      nodeSelectorTerms:
+      - matchExpressions:
+        - key: size
+          operator: In
+          values:
+            - large
+
+---
+kind: PersistentVolumeClaim
+apiVersion: v1
+metadata:
+  name: payment-service-mongodb-pvc
+spec:
+  storageClassName: payment-service-mongodb-storageclass
+  accessModes:
+    - ReadWriteOnce
+  volumeMode: Filesystem
+  resources:
+    requests:
+      storage: 10Gi
+

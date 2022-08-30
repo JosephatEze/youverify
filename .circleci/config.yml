@@ -418,19 +418,6 @@ jobs:
             docker build --tag=product-service ./product-service
             docker tag product-service:latest josephat/product-service:${CIRCLE_WORKFLOW_ID:0:7}
             docker push josephat/product-service:${CIRCLE_WORKFLOW_ID:0:7}
-
-      #- run:
-        #  name:  docker build
-        #  command: |
-           # cd ~
-          # echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin
-          # docker-compose build
-          # docker tag youverify:latest "$DOCKER_USERNAME"/youverify:latest
-          # docker tag youverify:latest "$DOCKER_USERNAME"/youverify:${CIRCLE_WORKFLOW_ID:0:7}
-          ##docker push "$DOCKER_USERNAME"/youverify:latest
-         # docker push "$DOCKER_USERNAME"/youverify:${CIRCLE_WORKFLOW_ID:0:7}
-         # docker pull "$DOCKER_USERNAME"/youverify:${CIRCLE_WORKFLOW_ID:0:7}
-          # docker images
       - slack/notify:
           event: fail
           mentions: '@DevOpsTeam'

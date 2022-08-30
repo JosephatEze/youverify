@@ -453,8 +453,7 @@ jobs:
       - run:
           name: authenticate to cluster and docker
           command: |
-              aws eks --region ${REGION} update-kubeconfig --name ${cluster_name}
-              echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
+              aws eks --region us-east-2 update-kubeconfig --name youverify-eks
       - run:
           name: deploy customer-service 
           command: |

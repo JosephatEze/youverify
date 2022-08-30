@@ -391,7 +391,7 @@ jobs:
             sudo apt-get install ./docker-desktop-<version>-<arch>.deb
             systemctl --user start docker-desktop 
       - run:
-          name: authenticate to docker
+          name: authenticate to docker hub
           command: |
               echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin  
       - run:
@@ -451,9 +451,10 @@ jobs:
             sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
             kubectl version --client
       - run:
-          name: authenticate to eks cluster 
+          name: authenticate to eks cluster and docker hub
           command: |
               aws eks --region us-east-2 update-kubeconfig --name youverify-eks
+              echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
       - run:
           name: deploy customer-service 
           command: |

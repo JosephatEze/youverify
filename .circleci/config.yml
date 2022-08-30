@@ -394,28 +394,28 @@ jobs:
           name:  build & push customer-service image
           command: |
             echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
-            docker build --tag=customer-service .
+            docker build --tag=customer-service ./customer-service
             docker tag customer-service:latest josephat/customer-service:${CIRCLE_WORKFLOW_ID:0:7}
             docker push josephat/customer-service:${CIRCLE_WORKFLOW_ID:0:7}
       - run:
           name:  build & push order-service image
           command: |
             echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
-            docker build --tag=order-service .
+            docker build --tag=order-service ./order-service
             docker tag order-service:latest josephat/order-service:${CIRCLE_WORKFLOW_ID:0:7}
             docker push josephat/order-service:${CIRCLE_WORKFLOW_ID:0:7}
       - run:
           name:  build & push payment-service image
           command: |
             echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
-            docker build --tag=payment-service .
+            docker build --tag=payment-service ./payment-service
             docker tag payment-service:latest josephat/payment-service:${CIRCLE_WORKFLOW_ID:0:7}
             docker push josephat/payment-service:${CIRCLE_WORKFLOW_ID:0:7}
       - run:
           name:  build & push product-service image
           command: |
             echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
-            docker build --tag=product-service .
+            docker build --tag=product-service ./product-service
             docker tag product-service:latest josephat/product-service:${CIRCLE_WORKFLOW_ID:0:7}
             docker push josephat/product-service:${CIRCLE_WORKFLOW_ID:0:7}
 

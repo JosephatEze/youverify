@@ -1,0 +1,6 @@
+To create and access cluster
+1. terraform init
+2.  terraform apply
+Run the following command to retrieve the access credentials for your cluster and configure kubectl 
+3. aws eks --region $(terraform output -raw region) update-kubeconfig \
+    --name $(terraform output -raw cluster_name)

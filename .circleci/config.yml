@@ -389,32 +389,32 @@ jobs:
             sudo rm /usr/local/bin/com.docker.cli
             sudo apt purge docker-desktop
             sudo apt-get install ./docker-desktop-<version>-<arch>.deb
-            systemctl --user start docker-desktop  
+            systemctl --user start docker-desktop 
+      - run:
+          name: authenticate to docker
+          command: |
+              echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin  
       - run:
           name:  build & push customer-service image
-          command: |
-            echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
+          command: |            
             docker build --tag=customer-service ./customer-service
             docker tag customer-service:latest josephat/customer-service:${CIRCLE_WORKFLOW_ID:0:7}
             docker push josephat/customer-service:${CIRCLE_WORKFLOW_ID:0:7}
       - run:
           name:  build & push order-service image
-          command: |
-            echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
+          command: |             
             docker build --tag=order-service ./order-service
             docker tag order-service:latest josephat/order-service:${CIRCLE_WORKFLOW_ID:0:7}
             docker push josephat/order-service:${CIRCLE_WORKFLOW_ID:0:7}
       - run:
           name:  build & push payment-service image
-          command: |
-            echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
+          command: |            
             docker build --tag=payment-service ./payment-service
             docker tag payment-service:latest josephat/payment-service:${CIRCLE_WORKFLOW_ID:0:7}
             docker push josephat/payment-service:${CIRCLE_WORKFLOW_ID:0:7}
       - run:
           name:  build & push product-service image
-          command: |
-            echo "${DOCKER_PASSWORD}" | docker login -u "${DOCKER_USERNAME}" --password-stdin 
+          command: |            
             docker build --tag=product-service ./product-service
             docker tag product-service:latest josephat/product-service:${CIRCLE_WORKFLOW_ID:0:7}
             docker push josephat/product-service:${CIRCLE_WORKFLOW_ID:0:7}
@@ -451,7 +451,7 @@ jobs:
             sudo install -o root -g root -m 0755 kubectl /usr/local/bin/kubectl
             kubectl version --client
       - run:
-          name: authenticate to cluster and docker
+          name: authenticate to eks cluster 
           command: |
               aws eks --region us-east-2 update-kubeconfig --name youverify-eks
       - run:

@@ -6,6 +6,11 @@ services:
       - "3000:3000"
     environment:
        DB_URL: mongodb://customer-db/customer-service
+       MONGO_USERNAME: $MONGO_USERNAME
+       MONGO_PASSWORD: $MONGO_PASSWORD
+       MONGO_HOSTNAME: customer-db
+       MONGO_PORT: $MONGO_PORT
+       MONGO_DB: $MONGO_DB
     volumes:
       #- .:/code
       - logvolume01:/var/log
@@ -19,6 +24,11 @@ services:
       - "3001:3001"
     environment:
        DB_URL: mongodb://order-db/order-service
+       MONGO_USERNAME: $MONGO_USERNAME
+       MONGO_PASSWORD: $MONGO_PASSWORD
+       MONGO_HOSTNAME: order-db
+       MONGO_PORT: $MONGO_PORT
+       MONGO_DB: $MONGO_DB
     volumes:
      # - .:/code
       - logvolume02:/var/log
@@ -32,6 +42,11 @@ services:
       - "3002:3002"
     environment:
        DB_URL: mongodb://payment-db/payment-service
+       MONGO_USERNAME: $MONGO_USERNAME
+       MONGO_PASSWORD: $MONGO_PASSWORD
+       MONGO_HOSTNAME: payment-db
+       MONGO_PORT: $MONGO_PORT
+       MONGO_DB: $MONGO_DB
     volumes:
      # - .:/code
       - logvolume03:/var/log
@@ -45,6 +60,11 @@ services:
       - "3003:3003"
     environment:
        DB_URL: mongodb://product-db/product-service
+       MONGO_USERNAME: $MONGO_USERNAME
+       MONGO_PASSWORD: $MONGO_PASSWORD
+       MONGO_HOSTNAME: product-db
+       MONGO_PORT: $MONGO_PORT
+       MONGO_DB: $MONGO_DB
     volumes:
       #- .:/code
       - logvolume04:/var/log
@@ -66,21 +86,33 @@ services:
   customer-db:
     image: mongo:4.2.22
     container_name: customer-db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$MONGO_USERNAME
+      - MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD
     ports:
       - 27017:27017
   order-db:
     image: mongo:4.2.22
     container_name: order-db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$MONGO_USERNAME
+      - MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD
     ports:
       - 27016:27017
   payment-db:
     image: mongo:4.2.22
     container_name: payment-db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$MONGO_USERNAME
+      - MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD
     ports:
       - 27015:27017
   product-db:
     image: mongo:4.2.22
     container_name: product-db
+    environment:
+      - MONGO_INITDB_ROOT_USERNAME=$MONGO_USERNAME
+      - MONGO_INITDB_ROOT_PASSWORD=$MONGO_PASSWORD
     ports:
       - 27014:27017
 
